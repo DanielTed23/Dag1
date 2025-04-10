@@ -4,11 +4,14 @@
 @using Dag1.Components.Account
 @using Dag1.Data
 @using Data.Todo
+@using Dag1.Code
 @using System.ComponentModel.DataAnnotations
 @using System.Security.Claims
+
 @inject AuthenticationStateProvider AuthStateProvider
 @inject TodoDbContext TodoDb
 @inject IdentityRedirectManager RedirectManager
+@inject HashingHandler hashingHandler
 
 <h3>Validate CPR. NR.</h3>
 
@@ -53,7 +56,7 @@ else
         if (user.Identity?.IsAuthenticated == true)
         {
             roles = user.Claims
-                .Where(c => c.Type == System.Security.Claims.ClaimTypes.Role)
+                .Where(c => c.Type == ClaimTypes.Role)
                 .Select(c => c.Value)
                 .ToList();
         }
@@ -63,22 +66,24 @@ else
 
     private async Task HandleSubmit()
     {
-        if (user?.Identity?.IsAuthenticated == true)
-        {
-            var cprEntity = new Cpr
-                {
-                    User = user.Identity.Name ?? "Ukendt",
-                    CprNr = cprModel.CprNr
-                };
+        if (user?.Identity?.IsAuthenticated != true)
+            return;
 
-            TodoDb.Cprs.Add(cprEntity);
-            await TodoDb.SaveChangesAsync();
+        // ✅ Hash CPR-nummer
+        var hashedCpr = hashingHandler.SHA256Hashing(cprModel.CprNr);
 
-            Console.WriteLine("CPR gemt i TodoDb ✅");
-            RedirectManager.RedirectTo("/todolist");
-        }
+        var cprEntity = new Cpr
+            {
+                User = user.Identity.Name ?? "Ukendt",
+                CprNr = hashedCpr
+            };
+
+        TodoDb.Cprs.Add(cprEntity);
+        await TodoDb.SaveChangesAsync();
+
+        Console.WriteLine("✅ Hashed CPR gemt i databasen");
+        RedirectManager.RedirectTo("/todolist");
     }
-
 
     public class CprModel
     {
