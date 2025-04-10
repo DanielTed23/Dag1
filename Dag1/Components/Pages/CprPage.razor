@@ -1,0 +1,88 @@
+﻿@page "/cpr"
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Dag1.Data
+@using Data.Todo
+@using System.ComponentModel.DataAnnotations
+@using System.Security.Claims
+@inject AuthenticationStateProvider AuthStateProvider
+@inject TodoDbContext TodoDb
+@inject IdentityRedirectManager RedirectManager
+
+<h3>Validate CPR. NR.</h3>
+
+@if (isLoading)
+{
+    <p>Loader brugerinfo...</p>
+}
+else if (user?.Identity?.IsAuthenticated == true)
+{
+    <p><strong>User:</strong> @user.Identity.Name (@string.Join(", ", roles))</p>
+
+    <EditForm Model="@cprModel" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label for="cprInput" class="form-label">Cpr-nr:</label>
+            <InputText id="cprInput" class="form-control" @bind-Value="cprModel.CprNr" />
+            <ValidationMessage For="@(() => cprModel.CprNr)" />
+        </div>
+
+        <button class="btn btn-primary" type="submit">Submit</button>
+    </EditForm>
+}
+else
+{
+    <p>Ingen bruger fundet.</p>
+}
+
+@code {
+    private ClaimsPrincipal? user;
+    private List<string> roles = new();
+    private bool isLoading = true;
+
+    private CprModel cprModel = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            roles = user.Claims
+                .Where(c => c.Type == System.Security.Claims.ClaimTypes.Role)
+                .Select(c => c.Value)
+                .ToList();
+        }
+
+        isLoading = false;
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (user?.Identity?.IsAuthenticated == true)
+        {
+            var cprEntity = new Cpr
+                {
+                    User = user.Identity.Name ?? "Ukendt",
+                    CprNr = cprModel.CprNr
+                };
+
+            TodoDb.Cprs.Add(cprEntity);
+            await TodoDb.SaveChangesAsync();
+
+            Console.WriteLine("CPR gemt i TodoDb ✅");
+            RedirectManager.RedirectTo("/");
+        }
+    }
+
+
+    public class CprModel
+    {
+        [Required(ErrorMessage = "CPR-nummer skal udfyldes")]
+        [StringLength(11, MinimumLength = 6, ErrorMessage = "CPR skal være mellem 6 og 11 tegn")]
+        public string CprNr { get; set; } = string.Empty;
+    }
+}
