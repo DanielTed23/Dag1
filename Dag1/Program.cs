@@ -7,8 +7,19 @@ using Dag1.Data;
 using Dag1.Code;
 using Dag1.Data.Todo;
 
-
 var builder = WebApplication.CreateBuilder(args);
+
+// ✅ Kestrel konfiguration – henter certifikat via user secrets / appsettings
+builder.WebHost.ConfigureKestrel((context, options) =>
+{
+    options.Configure(context.Configuration.GetSection("Kestrel"));
+});
+
+// ✅ (Bonus) Forhindr kørsel under IIS i produktion
+if (builder.Environment.IsProduction())
+{
+    throw new InvalidOperationException("Denne app er kun konfigureret til at køre med Kestrel – ikke IIS.");
+}
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
@@ -50,8 +61,6 @@ builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.Requ
     .AddSignInManager()
     .AddRoleManager<RoleManager<IdentityRole>>()
     .AddDefaultTokenProviders();
-    
-
 
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
@@ -68,7 +77,6 @@ builder.Services.AddAuthorization(option =>
     });
 });
 
-
 async Task EnsureRoles(IServiceProvider services)
 {
     var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
@@ -82,10 +90,6 @@ async Task EnsureRoles(IServiceProvider services)
         }
     }
 }
-
-// Kald i din Main
-
-
 
 var app = builder.Build();
 

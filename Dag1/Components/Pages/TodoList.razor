@@ -1,0 +1,95 @@
+﻿@page "/todolist"
+@using Dag1.Data.Todo
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore  <!-- DENNE HER! -->
+@inject TodoDbContext TodoDb
+@inject AuthenticationStateProvider AuthStateProvider
+
+<h3 class="mt-4 text-center">To do list</h3>
+
+@if (isLoading)
+{
+    <p>Loader dine to-do items...</p>
+}
+else
+{
+    <EditForm Model="newItem" OnValidSubmit="AddTodoItem">
+        <DataAnnotationsValidator />
+        <div class="d-flex justify-content-center mb-3">
+            <InputText class="form-control w-50 me-2" placeholder="Add to-do item..." @bind-Value="newItem.Item" />
+            <button class="btn btn-primary" type="submit">Submit</button>
+        </div>
+        <ValidationMessage For="() => newItem.Item" />
+    </EditForm>
+
+    <hr />
+
+    <h5 class="text-center">My to do items</h5>
+
+    @if (todoItems.Count == 0)
+    {
+        <p class="text-center text-muted">Ingen items endnu.</p>
+    }
+    else
+    {
+        <ul class="list-group w-50 mx-auto">
+            @foreach (var item in todoItems)
+            {
+                <li class="list-group-item">@item.Item</li>
+            }
+        </ul>
+    }
+}
+
+@code {
+    private List<Todolist> todoItems = new();
+    private Todolist newItem = new();
+    private string? currentUserEmail;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            currentUserEmail = user.Identity.Name;
+
+            // Hent brugerens CPR-record
+            var cpr = await TodoDb.Cprs.FirstOrDefaultAsync(c => c.User == currentUserEmail);
+            if (cpr != null)
+            {
+                // Hent items der tilhører brugerens CPR
+                todoItems = await TodoDb.Todolists
+                    .Where(t => t.UserId == cpr.Id)
+                    .ToListAsync();
+
+                newItem.UserId = cpr.Id; // Gør klar til nye item
+            }
+        }
+
+        isLoading = false;
+    }
+
+    private async Task AddTodoItem()
+    {
+        if (!string.IsNullOrWhiteSpace(newItem.Item))
+        {
+            TodoDb.Todolists.Add(new Todolist
+                {
+                    UserId = newItem.UserId,
+                    Item = newItem.Item
+                });
+
+            await TodoDb.SaveChangesAsync();
+
+            // Refresh liste
+            todoItems = await TodoDb.Todolists
+                .Where(t => t.UserId == newItem.UserId)
+                .ToListAsync();
+
+            newItem.Item = ""; // Clear input
+        }
+    }
+}

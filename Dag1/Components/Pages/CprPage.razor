@@ -1,6 +1,7 @@
 ﻿@page "/cpr"
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Identity
+@using Dag1.Components.Account
 @using Dag1.Data
 @using Data.Todo
 @using System.ComponentModel.DataAnnotations
@@ -74,7 +75,7 @@ else
             await TodoDb.SaveChangesAsync();
 
             Console.WriteLine("CPR gemt i TodoDb ✅");
-            RedirectManager.RedirectTo("/");
+            RedirectManager.RedirectTo("/todolist");
         }
     }
 
