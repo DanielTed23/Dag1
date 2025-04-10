@@ -15,12 +15,6 @@ builder.WebHost.ConfigureKestrel((context, options) =>
     options.Configure(context.Configuration.GetSection("Kestrel"));
 });
 
-// ✅ (Bonus) Forhindr kørsel under IIS i produktion
-if (builder.Environment.IsProduction())
-{
-    throw new InvalidOperationException("Denne app er kun konfigureret til at køre med Kestrel – ikke IIS.");
-}
-
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -93,9 +87,21 @@ async Task EnsureRoles(IServiceProvider services)
 
 var app = builder.Build();
 
+// ✅ Tjek: kører vi på Kestrel? Hvis ikke → smid fejl (IIS er ikke tilladt)
+var serverType = app.Services
+    .GetRequiredService<Microsoft.AspNetCore.Hosting.Server.IServer>()
+    .GetType().Name;
+
+// Smid kun fejl hvis serveren er IIS Express
+if (serverType == "IISHttpServer")
+{
+    throw new InvalidOperationException("❌ Denne app er ikke konfigureret til at køre under IIS Express.");
+}
+
+// ✅ Roller initialiseres
 await EnsureRoles(app.Services.CreateScope().ServiceProvider);
 
-// Configure the HTTP request pipeline.
+// ✅ Middleware pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseMigrationsEndPoint();
