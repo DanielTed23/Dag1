@@ -43,11 +43,13 @@
                 <ValidationMessage For="() => Input.ConfirmPassword" class="text-danger" />
             </div>
             <div class="form-floating mb-3">
-                <select class="form-select" @bind="Input.SelectedRole" id="role">
-                    <option value="">-- Vælg rolle (valgfrit) --</option>
+                <InputSelect @bind-Value="Input.SelectedRole" class="form-select">
+                    <option disabled selected value="">-- Vælg rolle --</option>
+                    <option value="User">User</option>
                     <option value="Admin">Admin</option>
-                </select>
-                <label for="role">Rolle (kun hvis du skal være Admin)</label>
+                </InputSelect>
+                <label for="role">Add Role</label>
+                <ValidationMessage For="() => Input.SelectedRole" class="text-danger" />
             </div>
 
             <button type="submit" class="w-100 btn btn-lg btn-primary">Register</button>
@@ -76,6 +78,7 @@
 
     public async Task RegisterUser(EditContext editContext)
     {
+        Logger.LogInformation("Valgt rolle: {0}", Input.SelectedRole);
         var user = CreateUser();
         user.TwoFactorEnabled = true;
 
@@ -90,14 +93,16 @@
             return;
         }
 
-        // ✅ Rolle-tildeling (dropdown-baseret)
-        var selectedRole = string.IsNullOrWhiteSpace(Input.SelectedRole) ? "User" : Input.SelectedRole;
+        // Rolle-tildeling efter bruger er oprettet
+        var roleResult = await UserManager.AddToRoleAsync(user, Input.SelectedRole);
 
-        var roleResult = await UserManager.AddToRoleAsync(user, selectedRole);
         if (!roleResult.Succeeded)
         {
-            Logger.LogError("Rollefejl: {0}", string.Join(", ", roleResult.Errors.Select(e => e.Description)));
+            Logger.LogError("Tildeling af rolle '{0}' fejlede: {1}",
+                Input.SelectedRole,
+                string.Join(", ", roleResult.Errors.Select(e => e.Description)));
         }
+
 
 
 
@@ -164,7 +169,8 @@
         [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
         public string ConfirmPassword { get; set; } = "";
 
-        [Display(Name = "Selected Role")]
-        public string? SelectedRole { get; set; }
+
+        [Required(ErrorMessage = "Du skal vælge en rolle")]
+        public string SelectedRole { get; set; } = "";
     }
 }

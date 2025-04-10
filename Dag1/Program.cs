@@ -74,15 +74,18 @@ async Task EnsureRoles(IServiceProvider services)
     var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
     string[] roleNames = { "Admin", "User" };
 
-    foreach (var roleName in roleNames)
+    foreach (var role in roleNames)
     {
-        var roleExists = await roleManager.RoleExistsAsync(roleName);
-        if (!roleExists)
+        if (!await roleManager.RoleExistsAsync(role))
         {
-            await roleManager.CreateAsync(new IdentityRole(roleName));
+            await roleManager.CreateAsync(new IdentityRole(role));
         }
     }
 }
+
+// Kald i din Main
+
+
 
 var app = builder.Build();
 
